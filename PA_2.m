@@ -64,7 +64,7 @@ U = hankel(u(1:m*s),u(s*m:end));%block Hankel matrix of the input
 order_step =2;
 i=0;
 RANK = zeros(length(u),1);%preallocation
-for n = 2:order_step:length(u) %n:model order
+for n = 2:1:length(u) %n:model order
     U = hankel(u(1:n),u(n:end));
     RANK(n,1) = rank(U);
 end
@@ -72,8 +72,8 @@ end
 % So, we are providing a persistently exciting input of order 100, the
 % plot is following.
 figure(4)
-t1 = -100:900-1;
-plot(t1,u,'.' )
+
+plot(t,u,'.' )
 xlabel(' Time (s)' )
 ylabel('u' )
 title('Persistently exciting Input u of order 100')
