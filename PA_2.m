@@ -108,7 +108,17 @@ for i = 2:length(tdel)
     if((tdel(i)-tdel(i-1)<=5))
         times{j,k} = t(tdel(i-1));%cell array
         times{j,k+1} = t(tdel(i));
+        k=j=1;k=1;%initializing
+for i = 2:length(tdel)
+    if((tdel(i)-tdel(i-1)<=5))
+        times{j,k} = t(tdel(i-1));%cell array
+        times{j,k+1} = t(tdel(i));
         k=k+1;
+    else
+        j=j+1;
+        k=1;
+    end
+endk+1;
     else
         j=j+1;
         k=1;
