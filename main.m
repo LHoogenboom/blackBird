@@ -3,7 +3,7 @@ clear; clc;
 fs = 100; % Hz
 dt = 1/fs;
 t = 0:dt:8-dt;
-u =7*uGen(t, "step",1,9);
+u =7*uGen(t, "step",1,0);
 yraw = exciteSystem(5360188,u,fs);
 
 % The peak time is at .87 seconds and the signal starts rising after a
@@ -38,30 +38,7 @@ clf; grid on;
 plot(t,y)
 
 
-%% timeshift
-
-
-
-%% linearity
-u10 =10*uGen(t, "step",1,9);
-u100 =100*uGen(t, "step",1,9);
-u200 =200*uGen(t, "step",1,9);
-
-y10 = exciteSystem(5360188,u10,fs);
-y100 = exciteSystem(5360188,u100,fs);
-y200 = exciteSystem(5360188,u200,fs);
-
-y10 = despike(y10,100);
-y100 = despike(y100,100);
-y200 = despike(y200,100);
-
-a10 = mean(y10)/10
-a100 = mean(y100)/100
-a10 = mean(y200)/200
-
-
-
-
+%% Timeshift
 
 
 %% Functions
@@ -105,4 +82,13 @@ function y = despike(sig,steep)
         end
     end
     y =sig;
+end
+
+function y = timeshift(u,y)
+    delay = .45;
+    i = 1;
+    while u(i)==0
+        i=i+i;
+    end
+    y = y(i:end)
 end
