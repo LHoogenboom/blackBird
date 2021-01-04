@@ -1,8 +1,8 @@
 %% Init
 clear; clc;
 t = 0:.1:99;
-u = uGen(t, "step",1,100);
-fs = 10;
+u = 50*uGen(t, "step",1,100);
+fs = 100;
 yraw = exciteSystem(4609638,u,fs);
 
 %% Pre process

@@ -10,8 +10,8 @@ clear; close all; clc;
 % response we can derive valuable information that will help us estimate a 
 % value for the sampling frequency. 
 
-N = 1000; % number of measurements
-u=ones(N,1);% the unit step signal
+N = 800; % number of measurements
+u=7*ones(N,1);% the unit step signal
 
 % The following plot shows the input signal, you can see that for t>0 the
 % value of the input signal is 1 and that we have discrete time
@@ -32,11 +32,11 @@ fprintf('*Sampling frequency \n')
 % decimate it if it's not suitable.
 % At first, we start with a rough estimate of the sampling frequency : 
 % fs = 100 Hz
-fs = 5/(2*pi);
+fs = 100;
 ts = 1/fs;%sampling time
 Tfinal = N*ts;%final time
 %STUDENTID: the lowest-valued student-id of the students in the group
-STUDENTID = 4609638; % 4609638 < 5360188
+STUDENTID = 5360188; % 4609638 < 5360188
 y = exciteSystem(STUDENTID,u,fs);
 t = 0:ts:Tfinal-ts;
 % The following plot shows the output response, we can see that there are
@@ -114,19 +114,23 @@ for i = 2:length(tdel)
         k=1;
     end
 end
-times = t(tdel);
-t(tdel) = [];
-y(ydel) = [];
+%keep time in a different array 
+t2 = t; 
+%delete the times that correspond to the wrong values 
+t(tdel) = []; 
+yq =[]; %interpolated values
 [r,~] = size(times);
-%Evaluate y at tq
-tq = 0:ts:Tfinal-ts;
-
+for i=1:r 
+    q = interp1(y,cell2mat(times(i,:)));
+    yq = [yq,q]; %corrected values
+end
 %Substitute the interpolated values into the previous sequence
 y(ydel) = yq;%use the output sequence without the spikes
-plot(tq,yq,'r-');
-legend('y','yq');
+plot(t2,y,'r-');
+legend('y','y_{cleared}');
 title('Removed spikes')
 hold off
+t=t2;
 
 %%% Time delays
 fprintf('*Time delay \n')
@@ -192,11 +196,13 @@ fprintf('*Identification and Validation data\n')
 %and a validation part. The identification is performed on the first
 %part(here we take the first 2/3 of all samples) and the validation on the
 %second part (the remaining 1/3 of all samples).
-u_id=u(1:floor(2*N/3),:);%identification input set
-y_id=y(1:floor(2*N/3),:);%identification output set
+u_id=u(:,1:floor(2*length(u)/3));%identification input set
+y = transpose(y);
+y_id=y(:,1:floor(2*length(y)/3));%identification output set
 
-u_val=u(floor(2*N/3)+1:N,:);%validation sets
-y_val=y(floor(2*N/3)+1:N,:);
+u = transpose(u);
+u_val = u(floor(2*length(u)/3+1):end,1);
+y_val = y(floor(2*length(y)/3+1):end,1);
  
 %% Assignment 2: Identification
 %Since we cannot use a white-noise sequence as an input signal, the
