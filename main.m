@@ -35,6 +35,14 @@ clear ytest
 %% spikes
 y = despike(yraw,10000,fs);
 
+% The signal was despiked by means of, first, flatlining the spikes, and
+% then intepolating between the beginning of the flatline and the first
+% value after the flatline. The decision to first flatline the spike was
+% made because this process determines the width of the spike (it is not
+% nescicarily 1 extreme measurement). Then this flatline was an easy
+% criterion to determine the area that needs to be interpolated over. The
+% interpolation was done linearly.
+
 figure(2)
 clf; grid on;
 plot(t,y)
@@ -49,6 +57,10 @@ y = timeshift(y,500,fs);
 
 cutoff = length(yraw)-length(y);
 t_shifted = t(cutoff+1:end);
+
+% The time shifting was performed looking at the slope of the output
+% signal. This cuts off any part of the signal where the slope reaches 500,
+% but only is the signal value at that point is equal or greater than 0. 
 
 figure(3)
 clf; hold on;
@@ -67,7 +79,7 @@ plot(t_shifted,y)
 %% Linearity Check
 table = [];
 fprintf("%0s | %10s \n","Input gain","IO gain")
-for i = 1:20
+for i = 1:20 % determine io gain for input gain 1 till 20
 	ut =i*uGen(t_gen, "step",1,9);
 
 % Persistently exciting input signal
@@ -87,9 +99,9 @@ clear ut Ut;
 
 %% Functions Assignment 1
 
-function u = uGen(time,type, amp, periods)
+function u = uGen(time,type, amp, periods) % generate inputs
 	dt = time(2)-time(1);
-	if type=="step"
+	if type=="step" % gen step with periods as prior zeros
 		u = [zeros(periods,1) ; ones(length(time)-periods,1)]*amp;
 	elseif type == "pulse"
 		u = [1 ; zeros(length(time)-1,1)];
@@ -110,76 +122,91 @@ end
 function U = genU(u)
     % Generates Persistently exciting unit step 
     z = countZeros(u);
-    sysOrder = z+1;
-    gain = max(u);
-    U = gain*ones(sysOrder,length(u));
-    U(1,:) = u';
-    for i=2:sysOrder
+    rank = z+1; % for unit step input
+    gain = max(u); % same input gain as 1D signal
+    U = gain*ones(rank,length(u));
+    U(1,:) = u'; % first row equals 1D signal
+    for i=2:rank
+		% Do bitshift operation (1 to the left) for all other rows with
+		% respect to previous row.
        U(i,:) = [u(i:end)' gain*ones(1,i-1)]; 
     end
 end
 
 function y = interp(sig)
+	% Interpolates flatlines signal until not flatlined anymore and appends
+	% anything that comes after it. Start at flatline, will not influence
+	% other flatlines
 	done = false;
 	i = 2;
 	while ~done
-		if ~(sig(i) == sig(1))
-			dy = sig(i)-sig(1);
+		if ~(sig(i) == sig(1)) % if no longer flatlined
+			dy = sig(i)-sig(1); % determine slope
 			dx = i;
-			for j=2:i
-				sig(j) = sig(j-1)+dy/dx;
+			for j=2:i-1 % for flatline
+				sig(j) = sig(j-1)+dy/dx; % linear interpolation
 			end
 			done = true;
 		end
-		i = i+1;
+		i = i+1; % look further if still at flatline
 	end
-	y = sig;
+	y = sig; % return
 end
 
 function y = despike(sig,slope,fs)
-	spikes = [];
+	% removes spikes by flatlining and then interpolating over flatline
+	spikes = []; % to stare spike starts
     for i = 2:length(sig)
-        if fs*(sig(i)-sig(i-1))>slope
-            sig(i) = sig(i-1);
-			if  ~(ismember(i-3,spikes)) && ~(ismember(i-2,spikes))
+		
+        if fs*(sig(i)-sig(i-1))>slope % check slope criterion
+			
+            sig(i) = sig(i-1); % flatline spike
+			
+			% only save start of identified spike
+			if  ~(ismember(i-3,spikes)) && ~(ismember(i-2,spikes)) 
 				spikes = [spikes i-1];
 			end
         end
 	end
-	for i = 1:length(spikes)
+	
+	for i = 1:length(spikes) % interpolate over spikes and prepend prior data
 		sig = [sig(1:spikes(i)-1) ; interp(sig(spikes(i):end))];
 	end
-    y =sig;
+    y =sig; % return
 end
 
 function y = timeshift(sig,slope,fs)
+	% removes any data before certain slope is achieved at y>=0
     i = 2;
 	done = false;
-	while ~done
-        if fs*(sig(i)-sig(i-1))>slope && sig(i-1)>=0
-            sig = sig(i-1:end);
-			done = true;	
+	while ~done % while no delayed respones identified
+        if fs*(sig(i)-sig(i-1))>slope && sig(i-1)>=0 % if high and steep enough
+            sig = sig(i-1:end); % remove prior data
+			done = true; % don't run while loop again	
 		end
 		i = i+1;
 	end
-    y =sig;
+    y =sig; % return
 end
 
 function y = DCoffset(y)
+	% removes constant offset to (ignores signal rise)
 	done = false;
 	i=2;
 	while ~done
-		if y(i) > y(i-1) && y(i) > y(i+1) && y(i) >400
-			sig = y(i:end);
+		% find fitst peak after rise
+		if y(i) > y(i-1) && y(i) > y(i+1) && y(i) >400 
+			sig = y(i:end); % look only after this peak
 			done = true;
 		end
 		i = i+1;
 	end
-	DC = mean(sig);
+	DC = mean(sig); % remove mean after this peak from signal
 	y = y-DC;
 end
 
 function g = IOgain(u,y,fs)
+	% determines IO gain
 	y = despike(y,10000,fs);
 	y = timeshift(y,500,fs);
 	g = mean(y)/mean(u);
