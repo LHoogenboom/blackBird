@@ -85,7 +85,7 @@ y = DCoffset(y); % removes DC Offset
 % scaling the input gain scales the output gain with the same factor,
 % resulting in a roughly constant IO gain of ca. 58.
 
-%% PRBS Input and preprocessing Data for assignment 2
+%% Generating training and validation data for assignment 2
 clc; close all;
 
 % Now in order to do system identification we need training data and
@@ -97,20 +97,21 @@ clc; close all;
 fs = 100; %Hz
 dur = 10;
 
-t = 0:(1/fs):dur-(1/fs);
+t = 0:(1/fs):dur-(1/fs); % same time verctor for generating both sets
 
-u_v = uGen(t,'step',35,0);
+u_v = uGen(t,'step',35,0); % validation data is step input mag=35
 y_v = exciteSystem(5360188,u_v,fs);
 
+% preprocess validation data
 y_v = despike(y_v,80000,fs);
 y_v = timeshift(y_v,4000,fs);
 % y_v = DCoffset(y_v);
 
 b = length(u_v)-length(y_v);
-u_v = u_v(1:end-b);
+u_v = u_v(1:end-b); % shorten u_v for reasons explained in assignment 1
 
 
-u_t = 35*prbs(length(t),0.5);
+u_t = 35*prbs(length(t),0.5); % training data is PRBS mag=35
 y_t = exciteSystem(5360188,u_t,fs);
 
 y_t = despike(y_t,80000,fs);
@@ -118,26 +119,28 @@ y_t = timeshift(y_t,4000,fs);
 % y_t = DCoffset(y_t);
 
 a = length(u_t)-length(y_t);
-u_t = u_t(1:end-a);
+u_t = u_t(1:end-a); % shorten input like before
 
+% shorten time to fit with either data set (for identification script to work)
 t_t = t(1:length(u_t))';
 t_v = t(1:length(u_v))';
 
 clear a b;
+
+
+clear;
+load('nicedata.mat')
 
 figure(12)
 clf; hold on;
 plot(t_t,y_t)
 plot(t_v,y_v)
 
-
-% the time for lshim needs to be timeshifted. fix data in general.
-
 %% Assignment 2
 %Since we cannot use a white-noise sequence as an input signal, the
 %identification methods that can be used are PI-MOESP and PO-MOESP. We will
 %use PO-MOESP here.
-method = 'po-moesp';
+method = 'pi-moesp';
 
 %To determine the order, we look for a gap between a set of dominant sin-
 %gular values that correspond to the dynamics of the system and a set
@@ -154,7 +157,7 @@ s = 100;
 % that were cut off at the beginning of the output will also be cut off at
 % the end of the input.
 
-[A,B,C,D,x0,sv] = subspaceID(u_t,y_t,s,n,method);
+[A,B,C,D,x0,sv] = subspaceID(u_t,y_t,s,n,method); 
 
 figure(6)
 semilogy(sv,'x')
