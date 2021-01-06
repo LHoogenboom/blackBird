@@ -108,7 +108,8 @@ for i = 2:length(tdel)
     if((tdel(i)-tdel(i-1)<=5))
         times{j,k} = t(tdel(i-1));%cell array
         times{j,k+1} = t(tdel(i));
-        k=j=1;k=1;%initializing
+        j=1;
+        k=1;%initializing
 for i = 2:length(tdel)
     if((tdel(i)-tdel(i-1)<=5))
         times{j,k} = t(tdel(i-1));%cell array
@@ -202,7 +203,7 @@ plot(t,y3);grid on; xlabel('Time (s)');ylabel('Output y');title('Response using 
 
 %%%Identification and Validation data
 fprintf('*Identification and Validation data\n')
-%Usually, we devide the measurements into an identification part
+%Usually, we divide the measurements into an identification part
 %and a validation part. The identification is performed on the first
 %part(here we take the first 2/3 of all samples) and the validation on the
 %second part (the remaining 1/3 of all samples).
@@ -233,7 +234,7 @@ y_hat_id = simsystem(A,B,C,D,x0,u);
 %identification VAF
 dy = y - y_hat_id; 
 VAF_id = max(0, 1 - ((1/length(y))*sum(dy.^2))/((1/length(y))*sum(y.^2)));
-%??Should we use PEM as well????
+%??Should we use PEM as well????break
 A0=A;
 B0=B;
 C0=C;

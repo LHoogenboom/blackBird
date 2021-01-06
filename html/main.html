@@ -6,7 +6,7 @@
    <!--
 This HTML was auto-generated from MATLAB code.
 To make changes, update the MATLAB code and republish this document.
-      --><title>main</title><meta name="generator" content="MATLAB 9.8"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2021-01-05"><meta name="DC.source" content="main.m"><style type="text/css">
+      --><title>main</title><meta name="generator" content="MATLAB 9.8"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2021-01-06"><meta name="DC.source" content="main.m"><style type="text/css">
 html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
 
 html { min-height:100%; margin-bottom:1px; }
@@ -67,18 +67,17 @@ table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px soli
 
 
 
-  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">Assignment 1</a></li><li><a href="#2">spikes</a></li><li><a href="#3">Timeshift</a></li><li><a href="#4">DC Offset</a></li><li><a href="#5">Linearity Check</a></li><li><a href="#6">Functions</a></li></ul></div><h2 id="1">Assignment 1</h2><pre class="codeinput">clear; clc;
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#1">Assignment 1</a></li><li><a href="#2">Timeshift</a></li><li><a href="#3">PRBS Input and preprocessing Data for assignment 2</a></li><li><a href="#4">Assignment 2</a></li><li><a href="#5">Functions</a></li></ul></div><h2 id="1">Assignment 1</h2><pre class="codeinput">clear; clc;
 fs = 44; <span class="comment">% Hz</span>
 dt = 1/fs;
-t_gen = 0:dt:8-dt;
-ut =7*uGen(t_gen, <span class="string">"step"</span>,1,9);
+t_gen = 0:dt:8-dt; <span class="comment">% Need different t vector for u because U gives different length y.</span>
+u =7*uGen(t_gen, <span class="string">"step"</span>,1,9); <span class="comment">% unit step input for system analysis</span>
 
-<span class="comment">% Persistently exciting input signal</span>
-Ut = genU(ut); <span class="comment">% works only for unit step input</span>
+<span class="comment">% Persistently exciting input signal (generated from unit step ut)</span>
+U = genU(u); <span class="comment">% works only for unit step input</span>
 
-yraw = exciteSystem(5360188, Ut, fs);
-ytest = exciteSystem(5360188,ut,fs);
-t = 0:dt/(countZeros(ut)+1):(8)-dt/(countZeros(ut)+1);
+yraw = exciteSystem(5360188, U, fs);
+t = 0:dt/(countZeros(u)+1):(8)-dt/(countZeros(u)+1); <span class="comment">% time vector for U</span>
 
 <span class="comment">% The peak time is at .87 seconds and the signal starts rising after a</span>
 <span class="comment">% delay of .45 seconds. This means that the rise time is about .42 seconds.</span>
@@ -95,63 +94,144 @@ t = 0:dt/(countZeros(ut)+1):(8)-dt/(countZeros(ut)+1);
 
 figure(1);
 clf; hold <span class="string">on</span>; grid <span class="string">on</span>;
-plot(t_gen,ut*50)
-plot(t_gen,ytest)
-legend(<span class="string">"50 * Input_{step}"</span>,<span class="string">"y_{raw}"</span>)
-</pre><img vspace="5" hspace="5" src="main_01.png" alt=""> <h2 id="2">spikes</h2><pre class="codeinput">y = despike(yraw,10000,fs);
+plot(t,yraw)
+legend(<span class="string">"y_{raw}"</span>)
+
+y = despike(yraw,10000,fs); <span class="comment">% Desipike output</span>
+
+<span class="comment">% The signal was despiked by means of, first, flatlining the spikes, and</span>
+<span class="comment">% then intepolating between the beginning of the flatline and the first</span>
+<span class="comment">% value after the flatline. The decision to first flatline the spike was</span>
+<span class="comment">% made because this process determines the width of the spike (it is not</span>
+<span class="comment">% nescicarily 1 extreme measurement). Then this flatline was an easy</span>
+<span class="comment">% criterion to determine the area that needs to be interpolated over. The</span>
+<span class="comment">% interpolation was done linearly.</span>
 
 figure(2)
 clf; grid <span class="string">on</span>;
 plot(t,y)
-</pre><img vspace="5" hspace="5" src="main_02.png" alt=""> <h2 id="3">Timeshift</h2><pre class="codeinput">y = timeshift(y,500,fs);
+</pre><img vspace="5" hspace="5" src="main_01.png" alt=""> <img vspace="5" hspace="5" src="main_02.png" alt=""> <h2 id="2">Timeshift</h2><pre class="codeinput">y = timeshift(y,500,fs);
 
 cutoff = length(yraw)-length(y);
 t_shifted = t(cutoff+1:end);
+clear <span class="string">cutoff</span>;
+
+<span class="comment">% The time shifting was performed looking at the slope of the output</span>
+<span class="comment">% signal. This cuts off any part of the signal where the slope reaches 500,</span>
+<span class="comment">% but only is the signal value at that point is equal or greater than 0.</span>
 
 figure(3)
 clf; hold <span class="string">on</span>;
 plot(t_shifted,y)
 
-clear <span class="string">cutoff</span>;
-</pre><img vspace="5" hspace="5" src="main_03.png" alt=""> <h2 id="4">DC Offset</h2><pre class="codeinput">y = DCoffset(y);
+y = DCoffset(y); <span class="comment">% removes DC Offset</span>
 
 figure(4)
 clf; hold <span class="string">on</span>;
 plot(t_shifted,y)
-</pre><img vspace="5" hspace="5" src="main_04.png" alt=""> <h2 id="5">Linearity Check</h2><pre class="codeinput">table = [];
-<span class="keyword">for</span> i = 1:20
+
+<span class="comment">% Linearity Check</span>
+
+table = [];
+fprintf(<span class="string">"%0s | %10s \n"</span>,<span class="string">"Input gain"</span>,<span class="string">"IO gain"</span>)
+<span class="keyword">for</span> i = 1:10 <span class="comment">% determine io gain for input gain 1 till 20</span>
 	ut =i*uGen(t_gen, <span class="string">"step"</span>,1,9);
 
 <span class="comment">% Persistently exciting input signal</span>
 	Ut = genU(ut); <span class="comment">% works only for unit step input</span>
 	yt = exciteSystem(5360188, Ut, fs);
 	iogain = IOgain(ut,yt,fs);
-<span class="comment">% 	fprintf("%10.0i | %f \n",ut(end), iogain)</span>
-	table = [table ; [ut(end) iogain]];
+	fprintf(<span class="string">"%-10.0i | %2.3f \n"</span>, ut(end), iogain)
 <span class="keyword">end</span>
-
-
-
-clear <span class="string">ut</span> <span class="string">Ut</span>;
+clear <span class="string">ut</span> <span class="string">Ut</span> <span class="string">table</span>;
 
 <span class="comment">% The table below shows IO gains for a varyety of input gains. The IO gains</span>
 <span class="comment">% seems constant by aproximation, which indicates linearit of the system.</span>
 <span class="comment">% The system roughly behaves as: y*Igain=IOgain*u*Igain --&gt; y=IOgain*u. I.E</span>
 <span class="comment">% scaling the input gain scales the output gain with the same factor,</span>
 <span class="comment">% resulting in a roughly constant IO gain of ca. 58.</span>
+</pre><pre class="codeoutput">Input gain |    IO gain 
+1          | 61.020 
+2          | 59.079 
+3          | 57.376 
+4          | 57.971 
+5          | 58.670 
+6          | 58.713 
+7          | 58.022 
+8          | 57.928 
+9          | 58.140 
+10         | 57.738 
+</pre><img vspace="5" hspace="5" src="main_03.png" alt=""> <img vspace="5" hspace="5" src="main_04.png" alt=""> <h2 id="3">PRBS Input and preprocessing Data for assignment 2</h2><pre class="codeinput">clc; close <span class="string">all</span>;
 
-fprintf(<span class="string">"%-10s | %-20s \n"</span>, <span class="string">"input gain"</span>,<span class="string">"IO Gain"</span>);
-</pre><h2 id="6">Functions</h2><pre class="codeinput"><span class="keyword">function</span> u = uGen(time,type, amp, periods)
+<span class="comment">% Now in order to do system identification we need training data and</span>
+<span class="comment">% validation data. We will generate these using different types of signals.</span>
+<span class="comment">% The training data will be generated using a Pseudo Random Binary Sequence (prbs). The</span>
+<span class="comment">% validation data will the data generated with a step function, like</span>
+<span class="comment">% before.</span>
+
+fs = 100; <span class="comment">%Hz</span>
+dur = 10;
+t = 0:(1/fs):dur-(1/fs);
+u_t = 35*prbs(length(t),0.5);
+y_t = exciteSystem(5360188,u_t,fs);
+
+y_t = despike(y_t,80000,fs);
+y_t = timeshift(y_t,4000,fs);
+y_t = DCoffset(y_t);
+
+a = length(u_t)-length(y_t);
+u_t = u_t(1:end-a);
+
+t2 = t(length(t)-length(y_t)+1:end);
+
+figure(5)
+clf; hold <span class="string">on</span>;
+plot(t2,y_t)
+</pre><img vspace="5" hspace="5" src="main_05.png" alt=""> <h2 id="4">Assignment 2</h2><pre class="codeinput"><span class="comment">%Since we cannot use a white-noise sequence as an input signal, the</span>
+<span class="comment">%identification methods that can be used are PI-MOESP and PO-MOESP. We will</span>
+<span class="comment">%use PO-MOESP here.</span>
+method = <span class="string">'po-moesp'</span>;
+
+<span class="comment">%To determine the order, we look for a gap between a set of dominant sin-</span>
+<span class="comment">%gular values that correspond to the dynamics of the system and a set</span>
+<span class="comment">%of small singular values due to the noise.</span>
+n = 1;<span class="comment">%non-zero singular values</span>
+s = 100;
+
+<span class="comment">% subspaceID runs into a problem, because the timeshifted output is no</span>
+<span class="comment">% longer the same length as the input. Even though there is a delayed</span>
+<span class="comment">% response, the output signal was originally the same length as the input</span>
+<span class="comment">% signal. This means that the end of the input signal was partially not</span>
+<span class="comment">% accounted for in the output. to solve this, the amount of measurements</span>
+<span class="comment">% that were cut off at the beginning of the output will also be cut off at</span>
+<span class="comment">% the end of the input.</span>
+
+[A,B,C,D,x0,sv] = subspaceID(u_t,y_t,s,n,method);
+
+figure(6)
+semilogy(sv,<span class="string">'.'</span>)
+</pre><img vspace="5" hspace="5" src="main_06.png" alt=""> <h2 id="5">Functions</h2><pre class="codeinput"><span class="keyword">function</span> u = uGen(time,type, amp, periods) <span class="comment">% generate inputs</span>
 	dt = time(2)-time(1);
-	<span class="keyword">if</span> type==<span class="string">"step"</span>
+	<span class="keyword">if</span> type==<span class="string">"step"</span> <span class="comment">% gen step with periods as prior zeros</span>
 		u = [zeros(periods,1) ; ones(length(time)-periods,1)]*amp;
 	<span class="keyword">elseif</span> type == <span class="string">"pulse"</span>
 		u = [1 ; zeros(length(time)-1,1)];
-	<span class="keyword">elseif</span> type == <span class="string">"sine"</span>
+    <span class="keyword">elseif</span> type == <span class="string">"sine"</span>
 		u = amp*sin(periods*time*2*pi/(dt*length(time)));
 	<span class="keyword">else</span>
 		u = <span class="string">"Unknown input type"</span>;
 	<span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> u = prbs(N,rate)
+    <span class="comment">% wrote own prbs because not allowed to use SI toolbox</span>
+    <span class="keyword">if</span> rate&gt;0 &amp;&amp; rate&lt;1
+        du = floor(rand(N,1)+rate);
+        u = rem(cumsum(du),2);
+    <span class="keyword">else</span>
+        u = <span class="string">'prbs(N,rate) | Error: Pick a rate between 0 and 1 \n'</span>;
+        fprintf(u);
+    <span class="keyword">end</span>
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> z = countZeros(u) <span class="comment">% counts zeros before unit step</span>
@@ -164,76 +244,91 @@ fprintf(<span class="string">"%-10s | %-20s \n"</span>, <span class="string">"in
 <span class="keyword">function</span> U = genU(u)
     <span class="comment">% Generates Persistently exciting unit step</span>
     z = countZeros(u);
-    sysOrder = z+1;
-    gain = max(u);
-    U = gain*ones(sysOrder,length(u));
-    U(1,:) = u';
-    <span class="keyword">for</span> i=2:sysOrder
+    rank = z+1; <span class="comment">% for unit step input</span>
+    gain = max(u); <span class="comment">% same input gain as 1D signal</span>
+    U = gain*ones(rank,length(u));
+    U(1,:) = u'; <span class="comment">% first row equals 1D signal</span>
+    <span class="keyword">for</span> i=2:rank
+		<span class="comment">% Do bitshift operation (1 to the left) for all other rows with</span>
+		<span class="comment">% respect to previous row.</span>
        U(i,:) = [u(i:end)' gain*ones(1,i-1)];
     <span class="keyword">end</span>
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> y = interp(sig)
+	<span class="comment">% Interpolates flatlines signal until not flatlined anymore and appends</span>
+	<span class="comment">% anything that comes after it. Start at flatline, will not influence</span>
+	<span class="comment">% other flatlines</span>
 	done = false;
 	i = 2;
 	<span class="keyword">while</span> ~done
-		<span class="keyword">if</span> ~(sig(i) == sig(1))
-			dy = sig(i)-sig(1);
+		<span class="keyword">if</span> ~(sig(i) == sig(1)) <span class="comment">% if no longer flatlined</span>
+			dy = sig(i)-sig(1); <span class="comment">% determine slope</span>
 			dx = i;
-			<span class="keyword">for</span> j=2:i
-				sig(j) = sig(j-1)+dy/dx;
+			<span class="keyword">for</span> j=2:i-1 <span class="comment">% for flatline</span>
+				sig(j) = sig(j-1)+dy/dx; <span class="comment">% linear interpolation</span>
 			<span class="keyword">end</span>
 			done = true;
 		<span class="keyword">end</span>
-		i = i+1;
+		i = i+1; <span class="comment">% look further if still at flatline</span>
 	<span class="keyword">end</span>
-	y = sig;
+	y = sig; <span class="comment">% return</span>
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> y = despike(sig,slope,fs)
-	spikes = [];
+	<span class="comment">% removes spikes by flatlining and then interpolating over flatline</span>
+	spikes = []; <span class="comment">% to stare spike starts</span>
     <span class="keyword">for</span> i = 2:length(sig)
-        <span class="keyword">if</span> fs*(sig(i)-sig(i-1))&gt;slope
-            sig(i) = sig(i-1);
+
+        <span class="keyword">if</span> fs*(sig(i)-sig(i-1))&gt;slope <span class="comment">% check slope criterion</span>
+
+            sig(i) = sig(i-1); <span class="comment">% flatline spike</span>
+
+			<span class="comment">% only save start of identified spike</span>
 			<span class="keyword">if</span>  ~(ismember(i-3,spikes)) &amp;&amp; ~(ismember(i-2,spikes))
 				spikes = [spikes i-1];
 			<span class="keyword">end</span>
         <span class="keyword">end</span>
 	<span class="keyword">end</span>
-	<span class="keyword">for</span> i = 1:length(spikes)
+
+	<span class="keyword">for</span> i = 1:length(spikes) <span class="comment">% interpolate over spikes and prepend prior data</span>
 		sig = [sig(1:spikes(i)-1) ; interp(sig(spikes(i):end))];
 	<span class="keyword">end</span>
-    y =sig;
+    y =sig; <span class="comment">% return</span>
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> y = timeshift(sig,slope,fs)
+	<span class="comment">% removes any data before certain slope is achieved at y&gt;=0</span>
     i = 2;
 	done = false;
-	<span class="keyword">while</span> ~done
-        <span class="keyword">if</span> fs*(sig(i)-sig(i-1))&gt;slope &amp;&amp; sig(i-1)&gt;=0
-            sig = sig(i-1:end);
-			done = true;
+	<span class="keyword">while</span> ~done <span class="comment">% while no delayed respones identified</span>
+        <span class="keyword">if</span> fs*(sig(i)-sig(i-1))&gt;slope &amp;&amp; sig(i-1)&gt;=0 <span class="comment">% if high and steep enough</span>
+            sig = sig(i-1:end); <span class="comment">% remove prior data</span>
+			done = true; <span class="comment">% don't run while loop again</span>
 		<span class="keyword">end</span>
 		i = i+1;
 	<span class="keyword">end</span>
-    y =sig;
+    y =sig; <span class="comment">% return</span>
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> y = DCoffset(y)
+	<span class="comment">% removes constant offset to (ignores signal rise)</span>
 	done = false;
 	i=2;
 	<span class="keyword">while</span> ~done
+		<span class="comment">% find fitst peak after rise</span>
 		<span class="keyword">if</span> y(i) &gt; y(i-1) &amp;&amp; y(i) &gt; y(i+1) &amp;&amp; y(i) &gt;400
-			sig = y(i:end);
+			sig = y(i:end); <span class="comment">% look only after this peak</span>
 			done = true;
 		<span class="keyword">end</span>
 		i = i+1;
 	<span class="keyword">end</span>
-	DC = mean(sig);
+	DC = mean(sig); <span class="comment">% remove mean after this peak from signal</span>
 	y = y-DC;
 <span class="keyword">end</span>
 
 <span class="keyword">function</span> g = IOgain(u,y,fs)
+	<span class="comment">% determines IO gain</span>
 	y = despike(y,10000,fs);
 	y = timeshift(y,500,fs);
 	g = mean(y)/mean(u);
@@ -244,15 +339,14 @@ fprintf(<span class="string">"%-10s | %-20s \n"</span>, <span class="string">"in
 clear; clc;
 fs = 44; % Hz
 dt = 1/fs;
-t_gen = 0:dt:8-dt;
-ut =7*uGen(t_gen, "step",1,9);
+t_gen = 0:dt:8-dt; % Need different t vector for u because U gives different length y.
+u =7*uGen(t_gen, "step",1,9); % unit step input for system analysis
 
-% Persistently exciting input signal
-Ut = genU(ut); % works only for unit step input
+% Persistently exciting input signal (generated from unit step ut)
+U = genU(u); % works only for unit step input
 
-yraw = exciteSystem(5360188, Ut, fs);
-ytest = exciteSystem(5360188,ut,fs);
-t = 0:dt/(countZeros(ut)+1):(8)-dt/(countZeros(ut)+1);
+yraw = exciteSystem(5360188, U, fs);
+t = 0:dt/(countZeros(u)+1):(8)-dt/(countZeros(u)+1); % time vector for U
 
 % The peak time is at .87 seconds and the signal starts rising after a
 % delay of .45 seconds. This means that the rise time is about .42 seconds.
@@ -269,55 +363,58 @@ t = 0:dt/(countZeros(ut)+1):(8)-dt/(countZeros(ut)+1);
 
 figure(1);
 clf; hold on; grid on;
-plot(t_gen,ut*50)
-plot(t_gen,ytest)
-legend("50 * Input_{step}","y_{raw}")
+plot(t,yraw)
+legend("y_{raw}")
 
-%% spikes
-y = despike(yraw,10000,fs);
+y = despike(yraw,10000,fs); % Desipike output
+
+% The signal was despiked by means of, first, flatlining the spikes, and
+% then intepolating between the beginning of the flatline and the first
+% value after the flatline. The decision to first flatline the spike was
+% made because this process determines the width of the spike (it is not
+% nescicarily 1 extreme measurement). Then this flatline was an easy
+% criterion to determine the area that needs to be interpolated over. The
+% interpolation was done linearly.
 
 figure(2)
 clf; grid on;
 plot(t,y)
-
-
 
 %% Timeshift
 y = timeshift(y,500,fs);
 
 cutoff = length(yraw)-length(y);
 t_shifted = t(cutoff+1:end);
+clear cutoff;
+
+% The time shifting was performed looking at the slope of the output
+% signal. This cuts off any part of the signal where the slope reaches 500,
+% but only is the signal value at that point is equal or greater than 0. 
 
 figure(3)
 clf; hold on;
 plot(t_shifted,y)
 
-clear cutoff;
-
-%% DC Offset
-
-y = DCoffset(y);
+y = DCoffset(y); % removes DC Offset
 
 figure(4)
 clf; hold on;
 plot(t_shifted,y)
 
-%% Linearity Check
+% Linearity Check
+
 table = [];
-for i = 1:20
+fprintf("%0s | %10s \n","Input gain","IO gain")
+for i = 1:10 % determine io gain for input gain 1 till 20
 	ut =i*uGen(t_gen, "step",1,9);
 
 % Persistently exciting input signal
 	Ut = genU(ut); % works only for unit step input
 	yt = exciteSystem(5360188, Ut, fs);
 	iogain = IOgain(ut,yt,fs);
-% 	fprintf("%10.0i | %f \n",ut(end), iogain)
-	table = [table ; [ut(end) iogain]];
+	fprintf("%-10.0i | %2.3f \n", ut(end), iogain)
 end
-
-
-
-clear ut Ut;
+clear ut Ut table;
 
 % The table below shows IO gains for a varyety of input gains. The IO gains
 % seems constant by aproximation, which indicates linearit of the system.
@@ -325,21 +422,84 @@ clear ut Ut;
 % scaling the input gain scales the output gain with the same factor,
 % resulting in a roughly constant IO gain of ca. 58.
 
-fprintf("%-10s | %-20s \n", "input gain","IO Gain");
+%% PRBS Input and preprocessing Data for assignment 2
+clc; close all;
+
+% Now in order to do system identification we need training data and
+% validation data. We will generate these using different types of signals.
+% The training data will be generated using a Pseudo Random Binary Sequence (prbs). The
+% validation data will the data generated with a step function, like
+% before.
+
+fs = 100; %Hz
+dur = 10;
+t = 0:(1/fs):dur-(1/fs);
+u_t = 35*prbs(length(t),0.5);
+y_t = exciteSystem(5360188,u_t,fs);
+
+y_t = despike(y_t,80000,fs);
+y_t = timeshift(y_t,4000,fs);
+y_t = DCoffset(y_t);
+
+a = length(u_t)-length(y_t);
+u_t = u_t(1:end-a);
+
+t2 = t(length(t)-length(y_t)+1:end);
+
+figure(5)
+clf; hold on;
+plot(t2,y_t)
+
+
+%% Assignment 2
+%Since we cannot use a white-noise sequence as an input signal, the
+%identification methods that can be used are PI-MOESP and PO-MOESP. We will
+%use PO-MOESP here.
+method = 'po-moesp';
+
+%To determine the order, we look for a gap between a set of dominant sin-
+%gular values that correspond to the dynamics of the system and a set
+%of small singular values due to the noise.
+n = 1;%non-zero singular values
+s = 100;
+
+% subspaceID runs into a problem, because the timeshifted output is no
+% longer the same length as the input. Even though there is a delayed
+% response, the output signal was originally the same length as the input
+% signal. This means that the end of the input signal was partially not
+% accounted for in the output. to solve this, the amount of measurements
+% that were cut off at the beginning of the output will also be cut off at
+% the end of the input.
+
+[A,B,C,D,x0,sv] = subspaceID(u_t,y_t,s,n,method);
+
+figure(6)
+semilogy(sv,'.')
 
 %% Functions
 
-function u = uGen(time,type, amp, periods)
+function u = uGen(time,type, amp, periods) % generate inputs
 	dt = time(2)-time(1);
-	if type=="step"
+	if type=="step" % gen step with periods as prior zeros
 		u = [zeros(periods,1) ; ones(length(time)-periods,1)]*amp;
 	elseif type == "pulse"
 		u = [1 ; zeros(length(time)-1,1)];
-	elseif type == "sine"
+    elseif type == "sine"
 		u = amp*sin(periods*time*2*pi/(dt*length(time)));
 	else 
 		u = "Unknown input type";
 	end
+end
+
+function u = prbs(N,rate)
+    % wrote own prbs because not allowed to use SI toolbox
+    if rate>0 && rate<1
+        du = floor(rand(N,1)+rate);
+        u = rem(cumsum(du),2);
+    else
+        u = 'prbs(N,rate) | Error: Pick a rate between 0 and 1 \n';
+        fprintf(u);
+    end
 end
 
 function z = countZeros(u) % counts zeros before unit step
@@ -352,76 +512,91 @@ end
 function U = genU(u)
     % Generates Persistently exciting unit step 
     z = countZeros(u);
-    sysOrder = z+1;
-    gain = max(u);
-    U = gain*ones(sysOrder,length(u));
-    U(1,:) = u';
-    for i=2:sysOrder
+    rank = z+1; % for unit step input
+    gain = max(u); % same input gain as 1D signal
+    U = gain*ones(rank,length(u));
+    U(1,:) = u'; % first row equals 1D signal
+    for i=2:rank
+		% Do bitshift operation (1 to the left) for all other rows with
+		% respect to previous row.
        U(i,:) = [u(i:end)' gain*ones(1,i-1)]; 
     end
 end
 
 function y = interp(sig)
+	% Interpolates flatlines signal until not flatlined anymore and appends
+	% anything that comes after it. Start at flatline, will not influence
+	% other flatlines
 	done = false;
 	i = 2;
 	while ~done
-		if ~(sig(i) == sig(1))
-			dy = sig(i)-sig(1);
+		if ~(sig(i) == sig(1)) % if no longer flatlined
+			dy = sig(i)-sig(1); % determine slope
 			dx = i;
-			for j=2:i
-				sig(j) = sig(j-1)+dy/dx;
+			for j=2:i-1 % for flatline
+				sig(j) = sig(j-1)+dy/dx; % linear interpolation
 			end
 			done = true;
 		end
-		i = i+1;
+		i = i+1; % look further if still at flatline
 	end
-	y = sig;
+	y = sig; % return
 end
 
 function y = despike(sig,slope,fs)
-	spikes = [];
+	% removes spikes by flatlining and then interpolating over flatline
+	spikes = []; % to stare spike starts
     for i = 2:length(sig)
-        if fs*(sig(i)-sig(i-1))>slope
-            sig(i) = sig(i-1);
-			if  ~(ismember(i-3,spikes)) && ~(ismember(i-2,spikes))
+		
+        if fs*(sig(i)-sig(i-1))>slope % check slope criterion
+			
+            sig(i) = sig(i-1); % flatline spike
+			
+			% only save start of identified spike
+			if  ~(ismember(i-3,spikes)) && ~(ismember(i-2,spikes)) 
 				spikes = [spikes i-1];
 			end
         end
 	end
-	for i = 1:length(spikes)
+	
+	for i = 1:length(spikes) % interpolate over spikes and prepend prior data
 		sig = [sig(1:spikes(i)-1) ; interp(sig(spikes(i):end))];
 	end
-    y =sig;
+    y =sig; % return
 end
 
 function y = timeshift(sig,slope,fs)
+	% removes any data before certain slope is achieved at y>=0
     i = 2;
 	done = false;
-	while ~done
-        if fs*(sig(i)-sig(i-1))>slope && sig(i-1)>=0
-            sig = sig(i-1:end);
-			done = true;	
+	while ~done % while no delayed respones identified
+        if fs*(sig(i)-sig(i-1))>slope && sig(i-1)>=0 % if high and steep enough
+            sig = sig(i-1:end); % remove prior data
+			done = true; % don't run while loop again	
 		end
 		i = i+1;
 	end
-    y =sig;
+    y =sig; % return
 end
 
 function y = DCoffset(y)
+	% removes constant offset to (ignores signal rise)
 	done = false;
 	i=2;
 	while ~done
-		if y(i) > y(i-1) && y(i) > y(i+1) && y(i) >400
-			sig = y(i:end);
+		% find fitst peak after rise
+		if y(i) > y(i-1) && y(i) > y(i+1) && y(i) >400 
+			sig = y(i:end); % look only after this peak
 			done = true;
 		end
 		i = i+1;
 	end
-	DC = mean(sig);
+	DC = mean(sig); % remove mean after this peak from signal
 	y = y-DC;
 end
 
 function g = IOgain(u,y,fs)
+	% determines IO gain
 	y = despike(y,10000,fs);
 	y = timeshift(y,500,fs);
 	g = mean(y)/mean(u);
