@@ -1,11 +1,18 @@
 %% Assignment 1
-clear all; clc;
-fs = 44; % Hz
+
+% The considered system is a black box to us. We can input an arbitrarily
+% chosen signal, but we don't know anyhting about sensor noise, nor the
+% dynamics of our system. First we will use a simple step input to develop
+% some preprocessing in assignment 1. In assignment 2, two completely new
+% singnals will be generated for identification and valudation of the
+% system. The signal used in Assignment 1 will not be used afterwards. 
+
+fs = 44; %Hz
 dt = 1/fs;
 t_gen = 0:dt:8-dt; % Need different t vector for u because U gives different length y.
 u =7*uGen(t_gen, "step",1,0); % unit step input for system analysis
 
-% Persistently exciting input signal (generated from unit step ut)
+% Persistently exciting input signal U (generated from unit step u)
 U = genU(u); % works only for unit step input
 
 yraw = exciteSystem(5360188, U, fs);
@@ -38,10 +45,10 @@ y = despike(yraw,10000,fs); % Desipike output
 % The signal was despiked by means of, first, flatlining the spikes, and
 % then intepolating between the beginning of the flatline and the first
 % value after the flatline. The decision to first flatline the spike was
-% made beucause this process determines the width of the spike (it is not
-% nescicarily 1 extreme measurement). Then this flatline was an easy
-% criterion to determine the area that needs to be interpolated over. The
-% interpolation was done linearly.
+% made beucause this was just the first iteration of the despiking process. However,
+% it is useful for determining the the width of the spike (it is not
+% nescicarily 1 extreme measurement) and thus it was kept. The
+% interpolation performed was linear.
 
 figure(2)
 clf; grid on;
@@ -59,7 +66,11 @@ clear cutoff;
 
 % The time shifting was performed looking at the slope of the output
 % signal. This cuts off any part of the signal where the slope reaches 500,
-% but only is the signal value at that point is equal or greater than 0. 
+% but only is the signal value at that point is equal or greater than 0.
+
+% the right value for the slope criterion during despiking and timeshifting
+% was found through trial and error. Nonetheless, it appears reliable for
+% the input signal it was finetuned for.
 
 figure(3)
 clf; hold on;
@@ -83,9 +94,8 @@ title('Pre-Processed Measured Data')
 
 % Linearity Check
 
-table = [];
 fprintf("%0s | %10s \n","Input gain","IO gain")
-for i = 1:10 % determine io gain for input gain 1 till 20
+for i = 1:10 % determine IOgain for input gain 1 till 20
 	ut =i*uGen(t_gen, "step",1,9);
 
 % Persistently exciting input signal
@@ -111,7 +121,9 @@ clear ut Ut table;
 % validation data. We will generate these using different types of signals.
 % The training data will be generated using a Pseudo Random Binary Sequence (prbs). The
 % validation data will the data generated with a step function, like
-% before.
+% before. The DC offset was not removed for either output, because it
+% appears this did not give a reliable model identification for us. But as
+% can be seen before, removal itself does work.
 
 fs = 100; %Hz
 dur = 10;
@@ -146,8 +158,8 @@ t_v = t(1:length(u_v))';
 
 clear a b;
 
-clear; % nicedata.mat was used to have cosistent data, for consistency and streamlining of the process
-load('nicedata.mat')
+% clear; % nicedata.mat was used to have cosistent data, for consistency and streamlining of the process
+% load('nicedata.mat')
 
 figure(12)
 clf; hold on;
@@ -175,15 +187,16 @@ method = 'pi-moesp';
 %though.
 
 n = 5;
-s = 100;
+s = 50;
 
 % subspaceID runs into a problem, because the timeshifted output is no
 % longer the same length as the input. Even though there is a delayed
 % response, the output signal was originally the same length as the input
 % signal. This means that the end of the input signal was partially not
-% accounted for in the output. to solve this, the amount of measurements
+% accounted for in the output. To solve this, the amount of measurements
 % that were cut off at the beginning of the output will also be cut off at
-% the end of the input.
+% the end of the input, to make the prepocessed IO data more representative of
+% eachother.
 
 [A,B,C,D,x0,sv] = subspaceID(u_t,y_t,s,n,method); 
 
@@ -198,14 +211,46 @@ title('Singular Values of Identified SS system')
 y_hat_t = simsystem(A,B,C,D,x0,u_t,fs,t_t);
 %identification VAF
 dy = y_t - y_hat_t; 
-VAF_id = max(0, 1 - ((1/length(y_t))*sum(dy.^2))/((1/length(y_t))*sum(y_t.^2)));
+VAF_id = max(0, 1 - ((1/length(y_t))*sum(dy.^2))/((1/length(y_t))*sum(y_t.^2)))*100;
+
+% The VAF of the training output and simulated output with training input
+% is high. It varies from time to time, but is consistently above 95%
+
+% As can be seen below, the simulated model does a good job of tracking the
+% measured output. However, this means that noise will be modeled too in
+% the identification step. It is unclear to us at this point how much
+% sensor noise there is and how much might be erratic behaviour of the
+% system. So looking at the singular value plot we believe that, on
+% average, a system order of 5 is good. What we notice is that during the
+% rise of the input the system is tracked very well. It is on average best
+% tracked with a system order of 5. We think that during this rise, the
+% system response is most dominant, compared to noise. So we decided to
+% tune identification for this.
+
+figure(21)
+clf; hold on;
+plot(t_t,y_t)
+plot(t_t,y_hat_t)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Training Data')
+legend("Measured output", "Simulated output")
 
 %% Assignment 3
 
 y_hat_val = simsystem(A,B,C,D,x0,u_v, fs,t_v);
 %identification VAF
 dy = y_v - y_hat_val; 
-VAF_val = max(0, 1 - ((1/length(y_v))*sum(dy.^2))/((1/length(y_v))*sum(y_v.^2)));
+VAF_val = max(0, 1 - ((1/length(y_v))*sum(dy.^2))/((1/length(y_v))*sum(y_v.^2)))*100;
+
+% It appears as though the system still tracks well during the rise, but
+% rapidly decays towards a steady state response. Because we use a
+% completely different input this time the system might react differently.
+% It is interesting that, though the simulated respons in now very
+% different, the VAF for the validation is still very hight, if not
+% sometimes higher than the VAF for the training data. This might be
+% coincedence, since a unit step and and prbs signal do resemble eachother
+% quite a lot.
 
 figure(13)
 clf; hold on;
@@ -215,6 +260,9 @@ xlabel("time [s]")
 ylabel("signal magnitude")
 title('Validation Data')
 legend("Measured output", "Simulated output")
+
+
+% STUFF ABOUT SIGNAL CORELLATION
 
 
 %% Functions
