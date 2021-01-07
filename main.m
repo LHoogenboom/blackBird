@@ -24,10 +24,14 @@ t = 0:dt/(countZeros(u)+1):(8)-dt/(countZeros(u)+1); % time vector for U
 % seconds. This time was multiplied by 10 and taken as an appropriate
 % duation for the simulation.
 
-% figure(1);
-% clf; hold on; grid on;
-% plot(t,yraw)
-% legend("y_{raw}")
+figure(1);
+clf; hold on; grid on;
+plot(t,yraw)
+plot(t_gen,50*u)
+legend("y_{raw}","Step*50")
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Unprocessed (raw) measured data')
 
 y = despike(yraw,10000,fs); % Desipike output
 
@@ -39,9 +43,12 @@ y = despike(yraw,10000,fs); % Desipike output
 % criterion to determine the area that needs to be interpolated over. The
 % interpolation was done linearly.
 
-% figure(2)
-% clf; grid on;
-% plot(t,y)
+figure(2)
+clf; grid on;
+plot(t,y)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Despiked Measured Data')
 
 %% Timeshift
 y = timeshift(y,500,fs);
@@ -54,30 +61,40 @@ clear cutoff;
 % signal. This cuts off any part of the signal where the slope reaches 500,
 % but only is the signal value at that point is equal or greater than 0. 
 
-% figure(3)
-% clf; hold on;
-% plot(t_shifted,y)
+figure(3)
+clf; hold on;
+plot(t_shifted,y)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Timeshifted Measurement Data')
+
+% Note the initial respones time is not reset to 0 in the plot for visual effect, but it is
+% when actual system identification is performed
 
 y = DCoffset(y); % removes DC Offset
 
-% figure(4)
-% clf; hold on;
-% plot(t_shifted,y)
+figure(4)
+clf; hold on;
+plot(t_shifted,y)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Pre-Processed Measured Data')
+
 
 % Linearity Check
 
-% table = [];
-% fprintf("%0s | %10s \n","Input gain","IO gain")
-% for i = 1:10 % determine io gain for input gain 1 till 20
-% 	ut =i*uGen(t_gen, "step",1,9);
-% 
-% % Persistently exciting input signal
-% 	Ut = genU(ut); % works only for unit step input
-% 	yt = exciteSystem(5360188, Ut, fs);
-% 	iogain = IOgain(ut,yt,fs);
-% 	fprintf("%-10.0i | %2.3f \n", ut(end), iogain)
-% end
-% clear ut Ut table;
+table = [];
+fprintf("%0s | %10s \n","Input gain","IO gain")
+for i = 1:10 % determine io gain for input gain 1 till 20
+	ut =i*uGen(t_gen, "step",1,9);
+
+% Persistently exciting input signal
+	Ut = genU(ut); % works only for unit step input
+	yt = exciteSystem(5360188, Ut, fs);
+	iogain = IOgain(ut,yt,fs);
+	fprintf("%-10.0i | %2.3f \n", ut(end), iogain)
+end
+clear ut Ut table;
 
 % The table below shows IO gains for a varyety of input gains. The IO gains
 % seems constant by aproximation, which indicates linearit of the system.
@@ -86,7 +103,9 @@ y = DCoffset(y); % removes DC Offset
 % resulting in a roughly constant IO gain of ca. 58.
 
 %% Generating training and validation data for assignment 2
-clc; close all;
+
+% completely new data will be generated and pre-processed for the
+% identification and validation of the system.
 
 % Now in order to do system identification we need training data and
 % validation data. We will generate these using different types of signals.
@@ -127,26 +146,35 @@ t_v = t(1:length(u_v))';
 
 clear a b;
 
-
-clear;
+clear; % nicedata.mat was used to have cosistent data, for consistency and streamlining of the process
 load('nicedata.mat')
 
 figure(12)
 clf; hold on;
 plot(t_t,y_t)
 plot(t_v,y_v)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Training and Validation Output Data')
+legend("training output","validation output")
+
 
 %% Assignment 2
 %Since we cannot use a white-noise sequence as an input signal, the
-%identification methods that can be used are PI-MOESP and PO-MOESP. We will
-%use PO-MOESP here.
+%identification methods that can be used are PI-MOESP and PI-MOESP. We will
+%use PI-MOESP here, because we do not know if we are dealing with white
+%measurement noise. 
 method = 'pi-moesp';
 
-%To determine the order, we look for a gap between a set of dominant sin-
+%To determine the order, we look for a significant gap between a set of dominant sin-
 %gular values that correspond to the dynamics of the system and a set
-%of small singular values due to the noise.
+%of small singular values due to the noise. This gap appears to vary every
+%time, which is logical since the measurments have unpredictable spikes and
+%is subject to random noise. However, a model order of 5 seems to give the
+%best overall result over multiple tries. It can sometimes prove unreliable
+%though.
 
-n = 5;%non-zero singular values
+n = 5;
 s = 100;
 
 % subspaceID runs into a problem, because the timeshifted output is no
@@ -162,6 +190,10 @@ s = 100;
 figure(6)
 semilogy(sv,'x')
 grid on; grid minor;
+xlabel("time [s]")
+ylabel("magnitude")
+title('Singular Values of Identified SS system')
+
 
 y_hat_t = simsystem(A,B,C,D,x0,u_t,fs,t_t);
 %identification VAF
@@ -179,6 +211,11 @@ figure(13)
 clf; hold on;
 plot(t_v,y_v)
 plot(t_v,y_hat_val)
+xlabel("time [s]")
+ylabel("signal magnitude")
+title('Validation Data')
+legend("Measured output", "Simulated output")
+
 
 %% Functions
 
@@ -196,7 +233,7 @@ function u = uGen(time,type, amp, periods) % generate inputs
 end
 
 function u = prbs(N,rate)
-    % wrote own prbs because not allowed to use SI toolbox
+    % wrote prbs because not allowed to use SI toolbox
     if rate>0 && rate<1
         du = floor(rand(N,1)+rate);
         u = rem(cumsum(du),2);
